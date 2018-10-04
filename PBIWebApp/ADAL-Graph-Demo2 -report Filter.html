@@ -1,0 +1,225 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Minimal sample using ADAL.JS</title>
+    <meta charset="utf-8" />
+    <style type="text/css">
+        body {
+            font-family: Tahoma;
+            padding: 3em;
+        }
+    </style>
+    <script src="https://secure.aadcdn.microsoftonline-p.com/lib/1.0.11/js/adal.min.js"></script>
+    <script src="https://npmcdn.com/es6-promise@3.2.1"></script>
+    <script type="text/javascript" src="scripts/powerbi.js"></script>
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.3.1.js"></script>
+</head>
+<body>
+    <p>
+        A minimal sample app using ADAL.JS and vanilla JavaScript to obtain
+        an access token from Azure Active Directory and make an API request.
+    </p>
+    <p>
+        <a href="#" onclick="authContext.login(); return false;">Log in</a> |
+        <a href="#" onclick="authContext.logOut(); return false;">Log out</a>
+    </p>
+    <p id="username"></p>
+    <pre id="api_response"></pre>
+
+    <input type="hidden" id="accessToken" value="" />
+
+    <div class="error">
+        <asp:Label ID="errorLabel" runat="server"></asp:Label>
+    </div>
+    <div>
+        Embedded Report
+        <br />
+        <div ID="reportContainer" style="width: 900px; height: 500px"></div>
+    </div>
+    <div>
+        Log View
+        <br />
+        <div ID="logView" style="width: 880px;"></div>
+    </div>
+    <script type="text/javascript">
+        // Set up ADAL
+        var authContext = new AuthenticationContext({
+            clientId: '25384b56-9bba-44e9-947a-07a2b5d7a9a9',
+            postLogoutRedirectUri: 'http://localhost:13526/',
+            redirect_uri: 'http://localhost:13526/'
+            // clientSecret: 'g/JO06lT5mrCZBPgIpEbHmwPJLo7qWD2y865k3mwG0U='
+        });
+
+        //// Make an AJAX request to the Microsoft Graph API and print the response as JSON.
+        //var getCurrentUser = function (access_token) {
+        //    document.getElementById('api_response').textContent = 'Calling API...';
+        //    var xhr = new XMLHttpRequest();
+        //    xhr.open('GET', 'https://graph.microsoft.com/v1.0/me', true);
+        //    xhr.setRequestHeader('Authorization', 'Bearer ' + access_token);
+        //    xhr.onreadystatechange = function () {
+        //        if (xhr.readyState === 4 && xhr.status === 200) {
+        //            // Do something with the response
+        //            document.getElementById('api_response').textContent =
+        //                JSON.stringify(JSON.parse(xhr.responseText), null, '  ');
+        //        } else {
+        //            // TODO: Do something with the error (or non-200 responses)
+        //            document.getElementById('api_response').textContent =
+        //                'ERROR:\n\n' + xhr.responseText;
+        //        }
+        //    };
+        //    xhr.send();
+        //}
+
+        if (authContext.isCallback(window.location.hash)) {
+            // Handle redirect after token requests
+            authContext.handleWindowCallback();
+            var err = authContext.getLoginError();
+            if (err) {
+                // TODO: Handle errors signing in and getting tokens
+                document.getElementById('api_response').textContent =
+                    'ERROR:\n\n' + err;
+            }
+        } else {
+            // If logged in, get access token and make an API request
+            var user = authContext.getCachedUser();
+            if (user) {
+                document.getElementById('username').textContent = 'Signed in as: ' + user.userName;
+                document.getElementById('api_response').textContent = 'Getting access token...';
+
+                // Get an access token to the Microsoft Graph API
+                authContext.acquireToken(
+                    'https://analysis.windows.net/powerbi/api', // 'https://graph.microsoft.com'
+                    function (error, token) {
+                        if (error || !token) {
+                            // TODO: Handle error obtaining access token
+                            document.getElementById('api_response').textContent =
+                                'ERROR:\n\n' + error;
+                            return;
+                        }
+                        // Use the access token
+                        //getCurrentUser(token);
+                        document.getElementById('accessToken').value = token;
+                    }
+                );
+            } else {
+                document.getElementById('username').textContent = 'Not signed in.';
+            }
+        }
+
+        function LoadReport() {
+            var accessToken = document.getElementById('accessToken').value;
+
+            if (!accessToken || accessToken == "") {
+                return;
+            }
+
+            //call PowerBI API
+            var embedUrl = 'https://app.powerbi.com/reportEmbed?reportId=9de258fb-251e-4b90-b399-e81d9c1b08ea&groupId=7c04d84a-8a29-4018-aa11-2d1c9e42bfa6';
+            var reportId = '9de258fb-251e-4b90-b399-e81d9c1b08ea';
+
+            var customerId = document.getElementById("mySelect").value;
+
+            //const filter = { ... };
+            var filter = {
+                $schema: "http://powerbi.com/product/schema#basic",
+                target: {
+                    table: "ods_customers",
+                    column: "CustomerID"
+                },
+                operator: "In",
+                //values: [customerId],
+                values: ["3365"]
+                // filterType: pbi.models.FilterType.BasicFilter
+            };
+
+            // Embed configuration used to describe the what and how to embed.
+            // This object is used when calling powerbi.embed.
+            // This also includes settings and options such as filters.
+            // You can find more information at https://github.com/Microsoft/PowerBI-JavaScript/wiki/Embed-Configuration-Details.
+            var models = window['powerbi-client'].models;
+            var config = {
+                type: 'report',
+                tokenType: models.TokenType.Aad, //models.TokenType.Embed
+                accessToken: accessToken,
+                embedUrl: embedUrl,
+                id: reportId,
+                pageName: 'ReportSectionb1eaa495e73dd7b1477d',
+                //filters: [filter], //only support report level filters here
+                settings: {
+                    filterPaneEnabled: false,
+                    navContentPaneEnabled: false
+                }
+            };
+
+            // Grab the reference to the div HTML element that will host the report.
+            var reportContainer = document.getElementById('reportContainer');
+
+            // Embed the report and display it within the div container.
+            var report = powerbi.embed(reportContainer, config);
+           
+
+            // Report.on will add an event handler which prints to Log window.
+            report.on("loaded", function () {
+                var logView = document.getElementById('logView');
+                logView.innerHTML = logView.innerHTML + "Loaded<br/>";
+
+                // Report.off removes a given event handler if it exists.
+                report.off("loaded");
+            });
+
+            // Report.on will add an event handler which prints to Log window.
+            report.on("rendered", function () {
+                var logView = document.getElementById('logView');
+                logView.innerHTML = logView.innerHTML + "Rendered<br/>";
+
+                report.setFilters([filter]); //works here only
+
+                // Report.off removes a given event handler if it exists.
+                report.off("rendered");
+            });
+        }
+
+        function LoadReport2() {
+
+            var customerId = document.getElementById("mySelect").value;
+
+            //const filter = { ... };
+            var filter = {
+                $schema: "http://powerbi.com/product/schema#basic",
+                target: {
+                    table: "ods_customers",
+                    column: "CustomerID"
+                },
+                operator: "In",
+                values: [customerId],
+                // filterType: pbi.models.FilterType.BasicFilter
+            };
+ 
+            // Grab the reference to the div HTML element that will host the report.
+            var reportContainer = document.getElementById('reportContainer');
+            var report = powerbi.get(reportContainer);
+
+            report.removeFilters();
+            report.setFilters([filter]);
+
+            var page = report.page('ReportSectionb1eaa495e73dd7b1477d');
+            page.getVisuals().then(function (visuals) {
+                console.log(visuals);
+                //visuals[31].removeFilters();
+                //visuals[31].setFilters([filter]);
+            });
+
+        }
+    </script>
+
+    <button onclick="LoadReport()">Load</button>
+
+    <select id="mySelect" onchange="LoadReport2()">
+        <option value="1811">RMS</option>
+        <option value="5578">Melbourne Metro</option>
+        <option value="4040">Snowy Hydro</option>
+        <option value="3682">DTMR</option>
+    </select>
+
+</body>
+</html>
