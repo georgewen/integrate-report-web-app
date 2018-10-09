@@ -14,7 +14,7 @@
     <script type="text/javascript" src="scripts/powerbi.js"></script>
     <script type="text/javascript" src="https://code.jquery.com/jquery-3.3.1.js"></script>
 </head>
-<body onload="autologin()">
+<body>
     <p>
         A minimal sample app using ADAL.JS and vanilla JavaScript to obtain
         an access token from Azure Active Directory and make an API request.
@@ -113,13 +113,6 @@
         }
 
 
-        function autologin() {
-            var myInput = document.getElementById("accessToken");
-            if (myInput==null || myInput.value =="") {
-             //  authContext.login(); //auto login???
-            }
-
-        }
         function LoadReport() {
             var accessToken = document.getElementById('accessToken').value;
 
@@ -128,8 +121,8 @@
             }
 
             //call PowerBI API
-            var embedUrl = 'https://app.powerbi.com/reportEmbed?reportId=ae4c3f86-6d42-45d9-983a-93fe6e6de102&groupId=7c04d84a-8a29-4018-aa11-2d1c9e42bfa6';
-            var reportId = 'ae4c3f86-6d42-45d9-983a-93fe6e6de102';
+            var embedUrl = 'https://app.powerbi.com/reportEmbed?reportId=57bcb9bb-78ca-41bb-9e78-250661ae08bc&groupId=c2d2286e-e5fc-4ed9-880e-1650e175310c';
+            var reportId = '57bcb9bb-78ca-41bb-9e78-250661ae08bc';
 
             var customerId = document.getElementById("mySelect").value;
 
@@ -153,7 +146,7 @@
                 accessToken: accessToken,
                 embedUrl: embedUrl,
                 id: reportId,
-                pageName: 'ReportSectionb1eaa495e73dd7b1477d',
+                pageName: 'ReportSection02762ece236b15a19274',
                 //filters: [filter], //only support report level filters here
                 settings: {
                     filterPaneEnabled: false,
@@ -213,7 +206,7 @@
             report.removeFilters();
             report.setFilters([filter]);
 
-            var page = report.page('ReportSectionb1eaa495e73dd7b1477d');
+            var page = report.page('ReportSection02762ece236b15a19274');
             page.getVisuals().then(function (visuals) {
                 console.log(visuals);
                 //visuals[31].removeFilters();
